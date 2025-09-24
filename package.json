@@ -1,0 +1,74 @@
+{
+  "name": "@gryffindors/yellow",
+  "version": "1.0.0",
+  "description": "A comprehensive SDK for Yellow Network integration with simplified components",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build",
+    "test": "jest"
+  },
+  "keywords": [
+    "yellow-network",
+    "blockchain",
+    "defi",
+    "ethereum",
+    "polygon",
+    "sdk",
+    "web3"
+  ],
+  "author": "Gryffindors Team",
+  "license": "MIT",
+  "dependencies": {
+    "@erc7824/nitrolite": "^0.3.0",
+    "pino": "^9.11.0"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.0.0",
+    "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "jest": "^29.0.0",
+    "jotai": "^2.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.0.0",
+    "viem": "2.21.19",
+    "wagmi": "2.12.9"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.0.0",
+    "jotai": "^2.0.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "viem": "2.21.19",
+    "wagmi": "2.12.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gryffindors-team/yellow-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gryffindors-team/yellow-sdk/issues"
+  },
+  "homepage": "https://github.com/gryffindors-team/yellow-sdk#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}
