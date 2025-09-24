@@ -1,6 +1,6 @@
 {
   "name": "@gryffindors/yellow",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A comprehensive SDK for Yellow Network integration with simplified components",
   "main": "dist/index.js",
   "module": "dist/index.js",
