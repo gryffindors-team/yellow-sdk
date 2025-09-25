@@ -1,14 +1,46 @@
 import { useAccount, useConnect, useDisconnect, useWalletClient } from 'wagmi';
-import { injected } from 'wagmi/connectors';
+import { injected, walletConnect, coinbaseWallet, safe } from 'wagmi/connectors';
 import { useCallback, useEffect, useState } from 'react';
 import { Address } from 'viem';
 import { GryffindorsSDK } from './core';
 import { SessionInfo, WalletConnectionState } from './types';
 import type { CreateConnectorFn } from 'wagmi';
 
-// Wagmi connector configuration - using injected to avoid MetaMask SDK bundling issues
+// Wagmi connector configuration with multiple wallet support
 export const gryffindorsConnectors: CreateConnectorFn[] = [
+  // Generic injected for MetaMask and other browser wallets
   injected(),
+  
+  // WalletConnect v2 (only if project ID is available)
+  ...(process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ? [
+    walletConnect({
+      projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
+      metadata: {
+        name: 'Gryffindors DApp',
+        description: 'Gryffindors Web3 Application',
+        url: 'https://gryffindors.app',
+        icons: ['https://gryffindors.app/icon.png']
+      },
+      showQrModal: true,
+    })
+  ] : []),
+  
+  // Coinbase Wallet
+  coinbaseWallet({
+    appName: 'Gryffindors DApp',
+    appLogoUrl: 'https://gryffindors.app/icon.png',
+  }),
+  
+  // Safe (Gnosis Safe) - only in supported environments
+  ...(typeof window !== 'undefined' && (
+    window.location.hostname.includes('gnosis-safe.io') || 
+    window.location.hostname.includes('app.safe.global')
+  ) ? [
+    safe({
+      allowedDomains: [/gnosis-safe.io$/, /app.safe.global$/],
+      debug: false,
+    })
+  ] : [])
 ];
 
 // Hook for wallet connection with Gryffindors SDK integration

@@ -1,10 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import { Address, parseUnits } from 'viem';
 import { GryffindorsSDK } from './core';
-import { useGryffindors, useGryffindorsChannels, useGryffindorsTransfers } from './react-hooks';
+import { useGryffindors, useGryffindorsChannels } from './react-hooks';
 import { useP2PTransfers, P2PTransferUtils } from './p2p-transfers';
 import { useGryffindorsWallet } from './wagmi-integration';
-import { useAccount, useWalletClient } from 'wagmi';
+import { useAccount, useWalletClient, useConnect } from 'wagmi';
 
 // Provider component for Gryffindors SDK
 interface GryffindorsProviderProps {
@@ -31,19 +31,169 @@ export function useGryffindorsContext() {
   return context;
 }
 
-// Wallet connection component
-export function WalletConnector() {
+// Wallet connection component with multi-wallet support
+interface WalletConnectorProps {
+  /** Default wallet to connect to. Defaults to 'metamask' */
+  defaultWallet?: 'metamask' | 'walletconnect' | 'coinbase' | 'safe' | 'trust' | 'rainbow' | 'phantom' | 'injected';
+  /** Array of supported wallets. If not provided, shows ONLY the default wallet */
+  supportedWallets?: Array<'metamask' | 'walletconnect' | 'coinbase' | 'safe' | 'trust' | 'rainbow' | 'phantom' | 'injected'>;
+  /** Custom styling class */
+  className?: string;
+  /** Show wallet selection dropdown (deprecated - use supportedWallets instead) */
+  showWalletSelection?: boolean;
+}
+
+export function WalletConnector({
+  defaultWallet = 'metamask',
+  supportedWallets,
+  className = '',
+  showWalletSelection = true
+}: WalletConnectorProps = {}) {
   const sdk = useGryffindorsContext();
-  const { walletState, sessionInfo, connectWallet, disconnectWallet, isConnecting } = useGryffindorsWallet(sdk);
+  const { walletState, sessionInfo, disconnectWallet, isConnecting } = useGryffindorsWallet(sdk);
+  const { connect, connectors } = useConnect();
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [lastConnectedWallet, setLastConnectedWallet] = useState(defaultWallet);
 
-  if (walletState.isConnected && sessionInfo.isActive) {
+  // Wallet configuration with icons and names
+  const walletConfig = {
+    metamask: {
+      name: 'MetaMask',
+      icon: '🦊',
+      connectorId: 'injected', // Use injected for MetaMask
+      description: 'Connect using MetaMask browser extension',
+      popular: true
+    },
+    walletconnect: {
+      name: 'WalletConnect',
+      icon: '🔗',
+      connectorId: 'walletConnect',
+      description: 'Connect to mobile wallets via QR code',
+      popular: true
+    },
+    coinbase: {
+      name: 'Coinbase Wallet',
+      icon: '🔵',
+      connectorId: 'coinbaseWallet',
+      description: 'Connect using Coinbase Wallet',
+      popular: true
+    },
+    safe: {
+      name: 'Safe (Gnosis)',
+      icon: '🔒',
+      connectorId: 'safe',
+      description: 'Connect using Gnosis Safe multisig wallet',
+      popular: false
+    },
+    trust: {
+      name: 'Trust Wallet',
+      icon: '🛡️',
+      connectorId: 'walletConnect',
+      description: 'Connect using Trust Wallet mobile app',
+      popular: true
+    },
+    rainbow: {
+      name: 'Rainbow',
+      icon: '🌈',
+      connectorId: 'walletConnect',
+      description: 'Connect using Rainbow wallet',
+      popular: true
+    },
+    phantom: {
+      name: 'Phantom',
+      icon: '👻',
+      connectorId: 'injected',
+      description: 'Connect using Phantom wallet (if available)',
+      popular: false
+    },
+    injected: {
+      name: 'Browser Wallet',
+      icon: '🌐',
+      connectorId: 'injected',
+      description: 'Connect using any injected wallet',
+      popular: false
+    }
+  };
+
+  // Filter supported wallets or use only default wallet if not specified
+  const availableWallets = supportedWallets
+    ? supportedWallets.filter(wallet => walletConfig[wallet])
+    : [defaultWallet]; // Only show default wallet unless explicitly configured
+
+  const connectToWallet = useCallback(async (walletType: string) => {
+    try {
+      const config = walletConfig[walletType as keyof typeof walletConfig];
+      if (!config) return;
+
+      // Debug: Log available connectors
+      console.log('Available connectors:', connectors.map(c => ({ id: c.id, name: c.name, type: c.type })));
+      
+      // Find the appropriate connector based on wallet type
+      let connector;
+      
+      switch (walletType) {
+        case 'metamask':
+        case 'phantom':
+        case 'injected':
+          // Use injected connector for browser extension wallets
+          connector = connectors.find(c => c.id === 'injected' || c.type === 'injected');
+          break;
+          
+        case 'walletconnect':
+        case 'trust':
+        case 'rainbow':
+          // Use WalletConnect for mobile wallets
+          connector = connectors.find(c => c.id === 'walletConnect' || c.type === 'walletConnect');
+          break;
+          
+        case 'coinbase':
+          // Use Coinbase Wallet connector
+          connector = connectors.find(c => c.id === 'coinbaseWallet' || c.type === 'coinbaseWallet');
+          break;
+          
+        case 'safe':
+          // Use Safe connector
+          connector = connectors.find(c => c.id === 'safe' || c.type === 'safe');
+          break;
+          
+        default:
+          // Fallback to first available connector
+          connector = connectors[0];
+      }
+
+      if (connector) {
+        console.log('Connecting with connector:', { id: connector.id, name: connector.name, type: connector.type });
+        await connect({ connector });
+        setLastConnectedWallet(walletType as keyof typeof walletConfig);
+        setShowDropdown(false);
+      } else {
+        console.error('No suitable connector found for', walletType);
+        alert(`${walletConfig[walletType as keyof typeof walletConfig]?.name} is not available. Please install the wallet or check your configuration.`);
+      }
+    } catch (error) {
+      console.error(`Failed to connect to ${walletType}:`, error);
+    }
+  }, [connect, connectors]);
+
+  // Connected state
+  if (walletState.isConnected) {
+    const currentWalletConfig = walletConfig[lastConnectedWallet];
+
     return (
-      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 rounded-xl shadow-lg">
-        <div className="flex-1">
-          <p className="text-sm font-bold text-black">
-            Connected: {walletState.address?.slice(0, 6)}...{walletState.address?.slice(-4)}
-          </p>
-          <p className="text-xs text-black/80">Ready for authentication</p>
+      <div className={`flex items-center justify-between p-4 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 rounded-xl shadow-lg ${className}`}>
+        <div className="flex items-center gap-3 flex-1">
+          <div className="text-2xl">{currentWalletConfig.icon}</div>
+          <div>
+            <p className="text-sm font-bold text-black">
+              {currentWalletConfig.name} Connected
+            </p>
+            <p className="text-xs text-black/80">
+              {walletState.address?.slice(0, 6)}...{walletState.address?.slice(-4)}
+            </p>
+            <p className="text-xs text-black/60">
+              {sessionInfo.isActive ? '✓ Authenticated' : 'Ready for authentication'}
+            </p>
+          </div>
         </div>
         <button
           onClick={disconnectWallet}
@@ -55,34 +205,132 @@ export function WalletConnector() {
     );
   }
 
-  if (walletState.isConnected && !sessionInfo.isActive) {
-    return (
-      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 rounded-xl shadow-lg">
-        <div className="flex-1">
-          <p className="text-sm font-bold text-black">
-            Connected: {walletState.address?.slice(0, 6)}...{walletState.address?.slice(-4)}
-          </p>
-          <p className="text-xs text-black/80">Ready for authentication</p>
-        </div>
-        <button
-          onClick={disconnectWallet}
-          className="px-4 py-2 text-sm font-medium text-white bg-black/20 border border-black/30 rounded-lg hover:bg-black/30 transition-all duration-200"
-        >
-          Disconnect
-        </button>
-      </div>
-    );
-  }
-
+  // Connection state
   return (
-    <div className="flex items-center justify-center p-6">
-      <button
-        onClick={connectWallet}
-        disabled={isConnecting}
-        className="w-full px-6 py-3 text-lg font-bold rounded-xl shadow-xl transition-all duration-200 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 text-black hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-      >
-        {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-      </button>
+    <div className={`p-6 ${className}`}>
+      {availableWallets.length > 1 ? (
+        <div className="space-y-4">
+          {/* Wallet Selection Header */}
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Connect Your Wallet
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Choose your preferred wallet to get started
+            </p>
+          </div>
+
+          {/* Default/Quick Connect Button */}
+          <button
+            onClick={() => connectToWallet(defaultWallet)}
+            disabled={isConnecting}
+            className="w-full flex items-center justify-center gap-3 px-6 py-4 text-lg font-bold rounded-xl shadow-xl transition-all duration-200 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 text-black hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
+            <span className="text-2xl">{walletConfig[defaultWallet].icon}</span>
+            {isConnecting ? 'Connecting...' : `Connect with ${walletConfig[defaultWallet].name}`}
+          </button>
+
+          {/* Popular Wallets Grid */}
+          {availableWallets.length > 1 && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                  Popular Wallets
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {availableWallets
+                    .filter(wallet => wallet !== defaultWallet && walletConfig[wallet].popular)
+                    .slice(0, 4)
+                    .map((wallet) => {
+                      const config = walletConfig[wallet];
+                      return (
+                        <button
+                          key={wallet}
+                          onClick={() => connectToWallet(wallet)}
+                          disabled={isConnecting}
+                          className="flex flex-col items-center gap-2 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 disabled:opacity-50"
+                        >
+                          <span className="text-2xl">{config.icon}</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            {config.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* More Options Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowDropdown(!showDropdown)}
+                  className="w-full px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 flex items-center justify-between"
+                >
+                  <span>More Wallet Options</span>
+                  <span className={`transform transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''}`}>
+                    ▼
+                  </span>
+                </button>
+
+                {showDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+                    {availableWallets
+                      .filter(wallet => wallet !== defaultWallet)
+                      .map((wallet) => {
+                        const config = walletConfig[wallet];
+                        return (
+                          <button
+                            key={wallet}
+                            onClick={() => connectToWallet(wallet)}
+                            disabled={isConnecting}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 first:rounded-t-lg last:rounded-b-lg disabled:opacity-50"
+                          >
+                            <span className="text-xl">{config.icon}</span>
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">
+                                {config.name}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {config.description}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        // Single wallet mode
+        <div className="text-center space-y-4">
+          <div className="text-6xl mb-4">{walletConfig[defaultWallet].icon}</div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Connect with {walletConfig[defaultWallet].name}
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+            {walletConfig[defaultWallet].description}
+          </p>
+          <button
+            onClick={() => connectToWallet(defaultWallet)}
+            disabled={isConnecting}
+            className="w-full px-6 py-3 text-lg font-bold rounded-xl shadow-xl transition-all duration-200 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 text-black hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
+            {isConnecting ? 'Connecting...' : `Connect ${walletConfig[defaultWallet].name}`}
+          </button>
+        </div>
+      )}
+
+      {/* Connection Status */}
+      {isConnecting && (
+        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-sm text-blue-800 dark:text-blue-200 text-center">
+            🔄 Connecting to your wallet... Please check your wallet for any pending requests.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -97,7 +345,7 @@ export function ChannelManager({ tokenAddress, tokenSymbol = 'TOKEN' }: ChannelM
   const sdk = useGryffindorsContext();
   const { channels } = useGryffindors(sdk);
   const { deposit, withdraw, isOperating, lastOperation } = useGryffindorsChannels(sdk);
-  
+
   const [amount, setAmount] = useState('');
   const [operation, setOperation] = useState<'deposit' | 'withdraw'>('deposit');
 
@@ -125,7 +373,7 @@ export function ChannelManager({ tokenAddress, tokenSymbol = 'TOKEN' }: ChannelM
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
         {tokenSymbol} Channel
       </h3>
-      
+
       {channel ? (
         <div className="mb-4 p-3 bg-gray-50 rounded-md">
           <p className="text-sm text-gray-600">
@@ -204,12 +452,12 @@ export function TransferForm() {
   const sdk = useGryffindorsContext();
   const { transfer, isTransferring, lastTransfer, status } = useP2PTransfers(sdk);
   const { isAuthenticated } = useGryffindors(sdk);
-  
+
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [asset, setAsset] = useState('USDC');
   const [chain, setChain] = useState('polygon');
-  const [errors, setErrors] = useState<{recipient?: string; amount?: string}>({});
+  const [errors, setErrors] = useState<{ recipient?: string; amount?: string }>({});
 
   // Token addresses for different chains
   const TOKEN_ADDRESSES = {
@@ -231,20 +479,20 @@ export function TransferForm() {
 
   const handleTransfer = useCallback(async () => {
     console.log('🚀 Starting P2P transfer...', { recipient, amount, asset, chain });
-    
+
     // Validate inputs using P2P utils
     const recipientValidation = validateAddress(recipient);
     const amountValidation = validateAmount(amount);
-    
+
     setErrors({
       recipient: recipientValidation.isValid ? undefined : recipientValidation.error,
       amount: amountValidation.isValid ? undefined : amountValidation.error
     });
 
     if (!recipientValidation.isValid || !amountValidation.isValid) {
-      console.log('❌ Validation failed:', { 
-        recipientError: recipientValidation.error, 
-        amountError: amountValidation.error 
+      console.log('❌ Validation failed:', {
+        recipientError: recipientValidation.error,
+        amountError: amountValidation.error
       });
       return;
     }
@@ -315,11 +563,10 @@ export function TransferForm() {
               }
             }}
             placeholder="0x..."
-            className={`w-full px-4 py-3 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
-              errors.recipient 
-                ? 'border-red-500 focus:ring-red-500/50' 
-                : 'border-gray-600 focus:ring-yellow-500/50 focus:border-yellow-500'
-            }`}
+            className={`w-full px-4 py-3 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${errors.recipient
+              ? 'border-red-500 focus:ring-red-500/50'
+              : 'border-gray-600 focus:ring-yellow-500/50 focus:border-yellow-500'
+              }`}
           />
           {errors.recipient && (
             <p className="mt-2 text-sm text-red-400">{errors.recipient}</p>
@@ -349,11 +596,10 @@ export function TransferForm() {
               placeholder="0.0"
               step="0.01"
               min="0"
-              className={`w-full px-4 py-3 pr-20 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
-                errors.amount 
-                  ? 'border-red-500 focus:ring-red-500/50' 
-                  : 'border-gray-600 focus:ring-yellow-500/50 focus:border-yellow-500'
-              }`}
+              className={`w-full px-4 py-3 pr-20 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${errors.amount
+                ? 'border-red-500 focus:ring-red-500/50'
+                : 'border-gray-600 focus:ring-yellow-500/50 focus:border-yellow-500'
+                }`}
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-4">
               <span className="text-gray-300 text-sm font-medium">{asset}</span>
@@ -362,7 +608,7 @@ export function TransferForm() {
           {errors.amount && (
             <p className="mt-2 text-sm text-red-400">{errors.amount}</p>
           )}
-          
+
           {/* Quick amount buttons */}
           <div className="mt-3 flex gap-2">
             {['0.01', '0.1', '1', '10'].map((quickAmount) => (
@@ -430,11 +676,11 @@ export function TransferForm() {
           disabled={!isAuthenticated || !isFormValid || isTransferring}
           className="w-full px-6 py-4 text-lg font-bold rounded-xl shadow-xl transition-all duration-200 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 text-black hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
         >
-          {!isAuthenticated 
+          {!isAuthenticated
             ? 'Connect Wallet to Transfer'
-            : isTransferring 
-            ? 'Transferring...' 
-            : 'Connect Wallet to Transfer'}
+            : isTransferring
+              ? 'Transferring...'
+              : 'Connect Wallet to Transfer'}
         </button>
 
         {/* Debug Info */}
@@ -449,11 +695,10 @@ export function TransferForm() {
 
       {/* Transfer Result */}
       {lastTransfer && (
-        <div className={`mt-6 p-4 rounded-lg border ${
-          lastTransfer.success 
-            ? 'bg-green-500/20 border-green-500/30 text-green-200' 
-            : 'bg-red-500/20 border-red-500/30 text-red-200'
-        }`}>
+        <div className={`mt-6 p-4 rounded-lg border ${lastTransfer.success
+          ? 'bg-green-500/20 border-green-500/30 text-green-200'
+          : 'bg-red-500/20 border-red-500/30 text-red-200'
+          }`}>
           <p className="text-sm font-medium">
             {lastTransfer.success ? '✅ Transfer Successful!' : '❌ Transfer Failed'}
           </p>
@@ -569,13 +814,13 @@ interface QuickDepositProps {
   className?: string;
 }
 
-export function QuickDeposit({ 
+export function QuickDeposit({
   tokenAddress = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", // USDC on Polygon
   tokenSymbol = "USDC",
   defaultAmount = "",
   onSuccess,
   onError,
-  className 
+  className
 }: QuickDepositProps) {
   const sdk = useGryffindorsContext();
   const { isAuthenticated } = useGryffindors(sdk);
@@ -628,14 +873,14 @@ interface ChannelStatusProps {
   className?: string;
 }
 
-export function ChannelStatus({ 
+export function ChannelStatus({
   tokenAddress = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
   tokenSymbol = "USDC",
-  className 
+  className
 }: ChannelStatusProps) {
   const sdk = useGryffindorsContext();
   const { channels } = useGryffindors(sdk);
-  
+
   const channel = channels[`${tokenAddress}-${sdk.getSessionInfo().account}`];
 
   return (
@@ -657,6 +902,45 @@ export function ChannelStatus({
       ) : (
         <p className="text-gray-500">No channel found</p>
       )}
+    </div>
+  );
+}
+
+// Debug component to test wallet connections
+export function WalletDebug() {
+  const { connectors } = useConnect();
+  
+  return (
+    <div className="p-4 bg-gray-100 rounded-lg">
+      <h3 className="font-bold mb-2">Available Connectors (Debug)</h3>
+      <div className="space-y-2">
+        {connectors.map((connector) => (
+          <div key={connector.id} className="text-sm">
+            <strong>ID:</strong> {connector.id} | <strong>Name:</strong> {connector.name} | <strong>Type:</strong> {connector.type}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Example usage components
+export function SingleWalletExample() {
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">Single Wallet (MetaMask only)</h3>
+      <WalletConnector />
+    </div>
+  );
+}
+
+export function MultiWalletExample() {
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">Multi Wallet Selection</h3>
+      <WalletConnector 
+        supportedWallets={['metamask', 'walletconnect', 'coinbase']}
+      />
     </div>
   );
 }
