@@ -2,7 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { Address, parseUnits } from 'viem';
 import { GryffindorsSDK } from './core';
 import { useGryffindors, useGryffindorsChannels, useGryffindorsTransfers } from './react-hooks';
-import { useGryffindorsWallet, useEIP712Signature } from './wagmi-integration';
+import { useP2PTransfers, P2PTransferUtils } from './p2p-transfers';
+import { useGryffindorsWallet } from './wagmi-integration';
 import { useAccount, useWalletClient } from 'wagmi';
 
 // Provider component for Gryffindors SDK
@@ -54,15 +55,30 @@ export function WalletConnector() {
     );
   }
 
+  if (walletState.isConnected && !sessionInfo.isActive) {
+    return (
+      <div className="flex items-center gap-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <div className="flex-1">
+          <p className="text-sm font-medium text-yellow-800">
+            Connected: {walletState.address?.slice(0, 6)}...{walletState.address?.slice(-4)}
+          </p>
+          <p className="text-xs text-yellow-600">Ready for authentication</p>
+        </div>
+        <button
+          onClick={disconnectWallet}
+          className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-md hover:bg-red-50"
+        >
+          Disconnect
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
       <div className="flex-1">
-        <p className="text-sm font-medium text-gray-800">
-          {walletState.isConnected ? 'Wallet Connected' : 'Wallet Not Connected'}
-        </p>
-        <p className="text-xs text-gray-600">
-          {walletState.isConnected ? 'Creating session...' : 'Connect to get started'}
-        </p>
+        <p className="text-sm font-medium text-gray-800">Wallet Not Connected</p>
+        <p className="text-xs text-gray-600">Connect to get started</p>
       </div>
       <button
         onClick={connectWallet}
@@ -187,35 +203,108 @@ export function ChannelManager({ tokenAddress, tokenSymbol = 'TOKEN' }: ChannelM
   );
 }
 
-// Transfer component
+// Enhanced P2P Transfer component with chain selection
 export function TransferForm() {
   const sdk = useGryffindorsContext();
-  const { transfer, isTransferring, lastTransfer } = useGryffindorsTransfers(sdk);
+  const { transfer, isTransferring, lastTransfer, status } = useP2PTransfers(sdk);
+  const { isAuthenticated } = useGryffindors(sdk);
   
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
-  const [asset, setAsset] = useState('usdc');
+  const [asset, setAsset] = useState('USDC');
+  const [chain, setChain] = useState('polygon');
+  const [errors, setErrors] = useState<{recipient?: string; amount?: string}>({});
+
+  // Token addresses for different chains
+  const TOKEN_ADDRESSES = {
+    polygon: {
+      USDC: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+      USDT: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
+      DAI: '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063'
+    },
+    base: {
+      USDC: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      USDT: '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2',
+      DAI: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb'
+    }
+  };
+
+  // Use P2P transfer utilities for validation
+  const validateAddress = (address: string) => P2PTransferUtils.validateAddress(address);
+  const validateAmount = (amount: string) => P2PTransferUtils.validateAmount(amount);
 
   const handleTransfer = useCallback(async () => {
-    if (!recipient || !amount || parseFloat(amount) <= 0) return;
-
-    await transfer({
-      to: recipient as Address,
-      amount,
-      asset
+    console.log('🚀 Starting P2P transfer...', { recipient, amount, asset, chain });
+    
+    // Validate inputs using P2P utils
+    const recipientValidation = validateAddress(recipient);
+    const amountValidation = validateAmount(amount);
+    
+    setErrors({
+      recipient: recipientValidation.isValid ? undefined : recipientValidation.error,
+      amount: amountValidation.isValid ? undefined : amountValidation.error
     });
 
-    setRecipient('');
-    setAmount('');
-  }, [recipient, amount, asset, transfer]);
+    if (!recipientValidation.isValid || !amountValidation.isValid) {
+      console.log('❌ Validation failed:', { 
+        recipientError: recipientValidation.error, 
+        amountError: amountValidation.error 
+      });
+      return;
+    }
+
+    try {
+      console.log('📤 Executing P2P transfer through enhanced hooks...');
+      const result = await transfer({
+        to: recipient as Address,
+        amount,
+        asset: asset.toLowerCase()
+      });
+
+      console.log('📊 P2P Transfer result:', result);
+
+      if (result.success) {
+        console.log('✅ P2P Transfer successful!');
+        // Clear form on success
+        setRecipient('');
+        setAmount('');
+        setErrors({});
+      } else {
+        console.log('❌ P2P Transfer failed:', result.error);
+      }
+    } catch (error) {
+      console.error('💥 P2P Transfer error:', error);
+    }
+  }, [recipient, amount, asset, chain, transfer]);
+
+  // Use P2P transfer utilities for formatting
+  const formatAddress = P2PTransferUtils.formatAddress;
+
+  const isFormValid = recipient && amount && parseFloat(amount) > 0 && !errors.recipient && !errors.amount;
 
   return (
     <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
-        Transfer Funds
+        💸 Transfer Assets
       </h3>
 
+      {!isAuthenticated && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+          <p className="text-yellow-800 text-sm">
+            Please connect your wallet and authenticate to enable P2P transfers.
+          </p>
+        </div>
+      )}
+
+      {/* P2P Transfer Status */}
+      {status && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+          <p className="text-blue-800 text-sm font-medium">{status}</p>
+        </div>
+      )}
+
       <div className="space-y-4">
+        {/* Recipient Address */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Recipient Address
@@ -223,25 +312,92 @@ export function TransferForm() {
           <input
             type="text"
             value={recipient}
-            onChange={(e) => setRecipient(e.target.value)}
+            onChange={(e) => {
+              setRecipient(e.target.value);
+              if (errors.recipient) {
+                setErrors(prev => ({ ...prev, recipient: undefined }));
+              }
+            }}
             placeholder="0x..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+              errors.recipient 
+                ? 'border-red-300 focus:ring-red-500' 
+                : 'border-gray-300 focus:ring-blue-500'
+            }`}
           />
+          {errors.recipient && (
+            <p className="mt-1 text-sm text-red-600">{errors.recipient}</p>
+          )}
+          {recipient && !errors.recipient && recipient.length === 42 && (
+            <p className="mt-1 text-sm text-green-600">
+              ✓ Valid address: {formatAddress(recipient as Address)}
+            </p>
+          )}
         </div>
 
+        {/* Amount */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Amount
           </label>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.0"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <div className="relative">
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                if (errors.amount) {
+                  setErrors(prev => ({ ...prev, amount: undefined }));
+                }
+              }}
+              placeholder="0.0"
+              step="0.01"
+              min="0"
+              className={`w-full px-3 py-2 pr-16 border rounded-md focus:outline-none focus:ring-2 ${
+                errors.amount 
+                  ? 'border-red-300 focus:ring-red-500' 
+                  : 'border-gray-300 focus:ring-blue-500'
+              }`}
+            />
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+              <span className="text-gray-500 text-sm">{asset}</span>
+            </div>
+          </div>
+          {errors.amount && (
+            <p className="mt-1 text-sm text-red-600">{errors.amount}</p>
+          )}
+          
+          {/* Quick amount buttons */}
+          <div className="mt-2 flex gap-2">
+            {['0.01', '0.1', '1', '10'].map((quickAmount) => (
+              <button
+                key={quickAmount}
+                type="button"
+                onClick={() => setAmount(quickAmount)}
+                className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 transition-colors"
+              >
+                {quickAmount}
+              </button>
+            ))}
+          </div>
         </div>
 
+        {/* Chain Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Network
+          </label>
+          <select
+            value={chain}
+            onChange={(e) => setChain(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="polygon">Polygon</option>
+            <option value="base">Base</option>
+          </select>
+        </div>
+
+        {/* Asset Selection */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Asset
@@ -251,26 +407,63 @@ export function TransferForm() {
             onChange={(e) => setAsset(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="usdc">USDC</option>
-            <option value="usdt">USDT</option>
-            <option value="dai">DAI</option>
+            <option value="USDC">USDC</option>
+            <option value="USDT">USDT</option>
+            <option value="DAI">DAI</option>
           </select>
+          <p className="mt-1 text-xs text-gray-500">
+            Token address: {TOKEN_ADDRESSES[chain as keyof typeof TOKEN_ADDRESSES]?.[asset as keyof typeof TOKEN_ADDRESSES.polygon] || 'Not available'}
+          </p>
         </div>
 
+        {/* Transfer Summary */}
+        {isFormValid && (
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-sm text-blue-800">
+              <strong>Summary:</strong> Send {amount} {asset} on {chain.charAt(0).toUpperCase() + chain.slice(1)} to {formatAddress(recipient as Address)}
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              Token: {TOKEN_ADDRESSES[chain as keyof typeof TOKEN_ADDRESSES]?.[asset as keyof typeof TOKEN_ADDRESSES.polygon]}
+            </p>
+          </div>
+        )}
+
+        {/* Transfer Button */}
         <button
           onClick={handleTransfer}
-          disabled={isTransferring || !recipient || !amount || parseFloat(amount) <= 0}
-          className="w-full px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!isAuthenticated || !isFormValid || isTransferring}
+          className="w-full px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {isTransferring ? 'Transferring...' : 'Transfer'}
+          {!isAuthenticated 
+            ? 'Connect Wallet to Transfer'
+            : isTransferring 
+            ? 'Transferring...' 
+            : 'Send P2P Transfer'}
         </button>
+
+        {/* Debug Info */}
+        {isAuthenticated && (
+          <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
+            <p>🔧 Debug: Session Active = {sdk.isSessionActive() ? 'Yes' : 'No'}</p>
+            <p>🔧 Debug: Selected Chain = {chain}</p>
+            <p>🔧 Debug: Token Address = {TOKEN_ADDRESSES[chain as keyof typeof TOKEN_ADDRESSES]?.[asset as keyof typeof TOKEN_ADDRESSES.polygon]}</p>
+          </div>
+        )}
       </div>
 
+      {/* Transfer Result */}
       {lastTransfer && (
-        <div className={`mt-4 p-3 rounded-md ${lastTransfer.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+        <div className={`mt-4 p-3 rounded-md ${
+          lastTransfer.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+        }`}>
           <p className="text-sm font-medium">
-            {lastTransfer.success ? 'Transfer Successful' : 'Transfer Failed'}
+            {lastTransfer.success ? '✅ Transfer Successful!' : '❌ Transfer Failed'}
           </p>
+          {lastTransfer.hash && (
+            <p className="text-xs mt-1">
+              Transaction: {lastTransfer.hash.slice(0, 10)}...{lastTransfer.hash.slice(-8)}
+            </p>
+          )}
           {lastTransfer.error && (
             <p className="text-xs mt-1">{lastTransfer.error}</p>
           )}

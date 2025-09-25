@@ -46,12 +46,8 @@ export function useGryffindorsWallet(sdk: GryffindorsSDK) {
     return unsubscribe;
   }, [sdk]);
 
-  // Auto-create session when wallet connects
-  useEffect(() => {
-    if (isConnected && address && walletClient && !sessionInfo.isActive) {
-      createSession();
-    }
-  }, [isConnected, address, walletClient, sessionInfo.isActive]);
+  // Note: Removed auto-create session to prevent automatic authentication popup
+  // Sessions are now created manually via YellowAuthenticator component or createSession() call
 
   const connectWallet = useCallback(async () => {
     try {

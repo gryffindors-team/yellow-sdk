@@ -9,6 +9,7 @@ A comprehensive SDK for Yellow Network integration with simplified API, wagmi su
 - ⚡ **React Hooks**: Ready-to-use hooks for React applications
 - 🎨 **UI Components**: Pre-built components for common operations
 - 🔗 **Wagmi Integration**: Seamless wallet connection with MetaMask support
+- � **P2pP Transfers**: Seamless peer-to-peer transfers with session keys
 - 📦 **TypeScript**: Full TypeScript support with comprehensive types
 
 ## Installation
@@ -229,6 +230,35 @@ import { TransferForm } from '@gryffindors/yellow';
 <TransferForm />
 ```
 
+### P2P Transfer Components
+Enhanced peer-to-peer transfer functionality:
+
+```tsx
+import { 
+  P2PTransferForm, 
+  QuickSupportButton, 
+  P2PTransferStatus 
+} from '@gryffindors/yellow';
+
+// Complete P2P transfer form
+<P2PTransferForm
+  onSuccess={(hash) => console.log('Success:', hash)}
+  onError={(error) => console.error('Error:', error)}
+/>
+
+// Quick support button for content creators
+<QuickSupportButton
+  recipient="0x742d35Cc6634C0532925a3b8D4C2C4e07b34ac7d"
+  recipientName="Alice"
+  amount="0.01"
+  asset="usdc"
+  onSuccess={() => alert('Thanks for supporting!')}
+/>
+
+// Transfer status and history
+<P2PTransferStatus />
+```
+
 ### BalanceDisplay
 Show user balances:
 
@@ -276,6 +306,45 @@ try {
   }
 }
 ```
+
+## P2P Transfers
+
+The SDK includes comprehensive P2P transfer functionality following the Nitrolite tutorial patterns:
+
+```tsx
+import { useP2PTransfers, P2PTransferUtils } from '@gryffindors/yellow';
+
+function MyTransferComponent() {
+  const { transfer, quickTransfer, support, isTransferring } = useP2PTransfers(sdk);
+
+  // Regular transfer
+  const handleTransfer = async () => {
+    const result = await transfer({
+      to: "0x742d35Cc6634C0532925a3b8D4C2C4e07b34ac7d",
+      amount: "1.0",
+      asset: "usdc"
+    });
+  };
+
+  // Quick support (like tipping content creators)
+  const handleSupport = async () => {
+    await support("0x742d35Cc6634C0532925a3b8D4C2C4e07b34ac7d", "0.01");
+  };
+
+  return (
+    <div>
+      <button onClick={handleTransfer} disabled={isTransferring}>
+        Send 1 USDC
+      </button>
+      <button onClick={handleSupport} disabled={isTransferring}>
+        Support with 0.01 USDC
+      </button>
+    </div>
+  );
+}
+```
+
+See [P2P_TRANSFERS.md](./P2P_TRANSFERS.md) for complete documentation and examples.
 
 ## License
 

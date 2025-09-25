@@ -199,18 +199,24 @@ export class GryffindorsSDK {
    */
   public async transferFunds(params: TransactionParams): Promise<TransactionResult> {
     try {
+      console.log('🔄 Core SDK transferFunds called with:', params);
+      
       const result = await this.yellowSDK.transfer({
         recipient: params.to,
         amount: params.amount,
         asset: params.asset || 'usdc'
       });
 
+      console.log('📊 Yellow SDK transfer result:', result);
+
       return {
         success: result.success,
+        hash: (result as any).transactionHash || (result as any).hash,
         error: result.error
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Transfer failed';
+      console.error('💥 Transfer error in core SDK:', error);
       return { success: false, error: errorMsg };
     }
   }

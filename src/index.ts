@@ -29,6 +29,19 @@ export {
   useGryffindorsSession
 } from './react-hooks';
 
+// P2P Transfer Hooks
+export {
+  useP2PTransfers,
+  useTransferRecipients,
+  P2PTransferUtils
+} from './p2p-transfers';
+
+export type {
+  P2PTransferParams,
+  P2PTransferResult,
+  P2PTransferState
+} from './p2p-transfers';
+
 // Wagmi Integration
 export {
   useGryffindorsWallet,
@@ -48,6 +61,14 @@ export {
   QuickDeposit,
   ChannelStatus
 } from './components';
+
+// P2P Transfer Components
+export {
+  P2PTransferForm,
+  QuickSupportButton,
+  P2PTransferStatus,
+  RecipientManager
+} from './p2p-components';
 
 // Pre-configured Providers (simplified integration)
 export {
