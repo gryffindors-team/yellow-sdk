@@ -38,16 +38,16 @@ export function WalletConnector() {
 
   if (walletState.isConnected && sessionInfo.isActive) {
     return (
-      <div className="flex items-center gap-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 rounded-xl shadow-lg">
         <div className="flex-1">
-          <p className="text-sm font-medium text-green-800">
+          <p className="text-sm font-bold text-black">
             Connected: {walletState.address?.slice(0, 6)}...{walletState.address?.slice(-4)}
           </p>
-          <p className="text-xs text-green-600">Session Active</p>
+          <p className="text-xs text-black/80">Ready for authentication</p>
         </div>
         <button
           onClick={disconnectWallet}
-          className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-md hover:bg-red-50"
+          className="px-4 py-2 text-sm font-medium text-white bg-black/20 border border-black/30 rounded-lg hover:bg-black/30 transition-all duration-200"
         >
           Disconnect
         </button>
@@ -57,16 +57,16 @@ export function WalletConnector() {
 
   if (walletState.isConnected && !sessionInfo.isActive) {
     return (
-      <div className="flex items-center gap-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 rounded-xl shadow-lg">
         <div className="flex-1">
-          <p className="text-sm font-medium text-yellow-800">
+          <p className="text-sm font-bold text-black">
             Connected: {walletState.address?.slice(0, 6)}...{walletState.address?.slice(-4)}
           </p>
-          <p className="text-xs text-yellow-600">Ready for authentication</p>
+          <p className="text-xs text-black/80">Ready for authentication</p>
         </div>
         <button
           onClick={disconnectWallet}
-          className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-md hover:bg-red-50"
+          className="px-4 py-2 text-sm font-medium text-white bg-black/20 border border-black/30 rounded-lg hover:bg-black/30 transition-all duration-200"
         >
           Disconnect
         </button>
@@ -75,15 +75,11 @@ export function WalletConnector() {
   }
 
   return (
-    <div className="flex items-center gap-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-      <div className="flex-1">
-        <p className="text-sm font-medium text-gray-800">Wallet Not Connected</p>
-        <p className="text-xs text-gray-600">Connect to get started</p>
-      </div>
+    <div className="flex items-center justify-center p-6">
       <button
         onClick={connectWallet}
         disabled={isConnecting}
-        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+        className="w-full px-6 py-3 text-lg font-bold rounded-xl shadow-xl transition-all duration-200 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 text-black hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
       >
         {isConnecting ? 'Connecting...' : 'Connect Wallet'}
       </button>
@@ -283,14 +279,14 @@ export function TransferForm() {
   const isFormValid = recipient && amount && parseFloat(amount) > 0 && !errors.recipient && !errors.amount;
 
   return (
-    <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+    <div className="p-6 bg-gray-900/50 border border-gray-600 rounded-xl backdrop-blur-sm">
+      <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
         💸 Transfer Assets
       </h3>
 
       {!isAuthenticated && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-          <p className="text-yellow-800 text-sm">
+        <div className="mb-6 p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
+          <p className="text-yellow-200 text-sm">
             Please connect your wallet and authenticate to enable P2P transfers.
           </p>
         </div>
@@ -298,15 +294,15 @@ export function TransferForm() {
 
       {/* P2P Transfer Status */}
       {status && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-          <p className="text-blue-800 text-sm font-medium">{status}</p>
+        <div className="mb-6 p-4 bg-blue-500/20 border border-blue-500/30 rounded-lg">
+          <p className="text-blue-200 text-sm font-medium">{status}</p>
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {/* Recipient Address */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-300 mb-2">
             Recipient Address
           </label>
           <input
@@ -319,17 +315,17 @@ export function TransferForm() {
               }
             }}
             placeholder="0x..."
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+            className={`w-full px-4 py-3 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
               errors.recipient 
-                ? 'border-red-300 focus:ring-red-500' 
-                : 'border-gray-300 focus:ring-blue-500'
+                ? 'border-red-500 focus:ring-red-500/50' 
+                : 'border-gray-600 focus:ring-yellow-500/50 focus:border-yellow-500'
             }`}
           />
           {errors.recipient && (
-            <p className="mt-1 text-sm text-red-600">{errors.recipient}</p>
+            <p className="mt-2 text-sm text-red-400">{errors.recipient}</p>
           )}
           {recipient && !errors.recipient && recipient.length === 42 && (
-            <p className="mt-1 text-sm text-green-600">
+            <p className="mt-2 text-sm text-green-400">
               ✓ Valid address: {formatAddress(recipient as Address)}
             </p>
           )}
@@ -337,7 +333,7 @@ export function TransferForm() {
 
         {/* Amount */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-300 mb-2">
             Amount
           </label>
           <div className="relative">
@@ -353,28 +349,28 @@ export function TransferForm() {
               placeholder="0.0"
               step="0.01"
               min="0"
-              className={`w-full px-3 py-2 pr-16 border rounded-md focus:outline-none focus:ring-2 ${
+              className={`w-full px-4 py-3 pr-20 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
                 errors.amount 
-                  ? 'border-red-300 focus:ring-red-500' 
-                  : 'border-gray-300 focus:ring-blue-500'
+                  ? 'border-red-500 focus:ring-red-500/50' 
+                  : 'border-gray-600 focus:ring-yellow-500/50 focus:border-yellow-500'
               }`}
             />
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-              <span className="text-gray-500 text-sm">{asset}</span>
+            <div className="absolute inset-y-0 right-0 flex items-center pr-4">
+              <span className="text-gray-300 text-sm font-medium">{asset}</span>
             </div>
           </div>
           {errors.amount && (
-            <p className="mt-1 text-sm text-red-600">{errors.amount}</p>
+            <p className="mt-2 text-sm text-red-400">{errors.amount}</p>
           )}
           
           {/* Quick amount buttons */}
-          <div className="mt-2 flex gap-2">
+          <div className="mt-3 flex gap-2">
             {['0.01', '0.1', '1', '10'].map((quickAmount) => (
               <button
                 key={quickAmount}
                 type="button"
                 onClick={() => setAmount(quickAmount)}
-                className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 transition-colors"
+                className="text-xs px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300 hover:text-white transition-all duration-200 border border-gray-600"
               >
                 {quickAmount}
               </button>
@@ -384,13 +380,13 @@ export function TransferForm() {
 
         {/* Chain Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-300 mb-2">
             Network
           </label>
           <select
             value={chain}
             onChange={(e) => setChain(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all duration-200"
           >
             <option value="polygon">Polygon</option>
             <option value="base">Base</option>
@@ -399,30 +395,30 @@ export function TransferForm() {
 
         {/* Asset Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-300 mb-2">
             Asset
           </label>
           <select
             value={asset}
             onChange={(e) => setAsset(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all duration-200"
           >
             <option value="USDC">USDC</option>
             <option value="USDT">USDT</option>
             <option value="DAI">DAI</option>
           </select>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-2 text-xs text-gray-400">
             Token address: {TOKEN_ADDRESSES[chain as keyof typeof TOKEN_ADDRESSES]?.[asset as keyof typeof TOKEN_ADDRESSES.polygon] || 'Not available'}
           </p>
         </div>
 
         {/* Transfer Summary */}
         {isFormValid && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-sm text-blue-800">
+          <div className="p-4 bg-blue-500/20 border border-blue-500/30 rounded-lg">
+            <p className="text-sm text-blue-200">
               <strong>Summary:</strong> Send {amount} {asset} on {chain.charAt(0).toUpperCase() + chain.slice(1)} to {formatAddress(recipient as Address)}
             </p>
-            <p className="text-xs text-blue-600 mt-1">
+            <p className="text-xs text-blue-300 mt-1">
               Token: {TOKEN_ADDRESSES[chain as keyof typeof TOKEN_ADDRESSES]?.[asset as keyof typeof TOKEN_ADDRESSES.polygon]}
             </p>
           </div>
@@ -432,18 +428,18 @@ export function TransferForm() {
         <button
           onClick={handleTransfer}
           disabled={!isAuthenticated || !isFormValid || isTransferring}
-          className="w-full px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full px-6 py-4 text-lg font-bold rounded-xl shadow-xl transition-all duration-200 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 text-black hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
         >
           {!isAuthenticated 
             ? 'Connect Wallet to Transfer'
             : isTransferring 
             ? 'Transferring...' 
-            : 'Send P2P Transfer'}
+            : 'Connect Wallet to Transfer'}
         </button>
 
         {/* Debug Info */}
         {isAuthenticated && (
-          <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
+          <div className="mt-4 p-3 bg-gray-800/30 border border-gray-700 rounded-lg text-xs text-gray-400">
             <p>🔧 Debug: Session Active = {sdk.isSessionActive() ? 'Yes' : 'No'}</p>
             <p>🔧 Debug: Selected Chain = {chain}</p>
             <p>🔧 Debug: Token Address = {TOKEN_ADDRESSES[chain as keyof typeof TOKEN_ADDRESSES]?.[asset as keyof typeof TOKEN_ADDRESSES.polygon]}</p>
@@ -453,8 +449,10 @@ export function TransferForm() {
 
       {/* Transfer Result */}
       {lastTransfer && (
-        <div className={`mt-4 p-3 rounded-md ${
-          lastTransfer.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+        <div className={`mt-6 p-4 rounded-lg border ${
+          lastTransfer.success 
+            ? 'bg-green-500/20 border-green-500/30 text-green-200' 
+            : 'bg-red-500/20 border-red-500/30 text-red-200'
         }`}>
           <p className="text-sm font-medium">
             {lastTransfer.success ? '✅ Transfer Successful!' : '❌ Transfer Failed'}
@@ -479,26 +477,26 @@ export function BalanceDisplay() {
   const { balances, refresh, isLoading } = useGryffindors(sdk);
 
   return (
-    <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Balances</h3>
+    <div className="p-6 bg-gray-900/50 border border-gray-600 rounded-xl backdrop-blur-sm">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-semibold text-white">Balances</h3>
         <button
           onClick={refresh}
           disabled={isLoading}
-          className="px-3 py-1 text-sm text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50"
+          className="px-4 py-2 text-sm font-medium text-white bg-gray-700 border border-gray-600 rounded-lg hover:bg-gray-600 disabled:opacity-50 transition-all duration-200"
         >
           {isLoading ? 'Refreshing...' : 'Refresh'}
         </button>
       </div>
 
       {Object.keys(balances).length === 0 ? (
-        <p className="text-sm text-gray-500">No balances available</p>
+        <p className="text-sm text-gray-400 text-center py-4">No balances available</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {Object.entries(balances).map(([asset, balance]) => (
-            <div key={asset} className="flex justify-between items-center p-2 bg-gray-50 rounded-md">
-              <span className="text-sm font-medium text-gray-700 uppercase">{asset}</span>
-              <span className="text-sm text-gray-900">{parseFloat(balance).toFixed(4)}</span>
+            <div key={asset} className="flex justify-between items-center p-3 bg-gray-800/50 border border-gray-700 rounded-lg">
+              <span className="text-sm font-medium text-gray-300 uppercase">{asset}</span>
+              <span className="text-sm font-bold text-white">{parseFloat(balance).toFixed(4)}</span>
             </div>
           ))}
         </div>
@@ -542,18 +540,18 @@ export function YellowAuthenticator({ onSuccess, onError, className }: YellowAut
 
   if (isAuthenticated) {
     return (
-      <div className={`p-4 bg-green-50 border border-green-200 rounded-lg ${className}`}>
-        <p className="text-green-800 font-medium">✓ Authenticated with Yellow Network</p>
+      <div className={`p-4 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-lg ${className}`}>
+        <p className="text-white font-bold text-center">✓ Authenticated with Yellow Network</p>
       </div>
     );
   }
 
   return (
-    <div className={`p-4 bg-gray-50 border border-gray-200 rounded-lg ${className}`}>
+    <div className={`flex items-center justify-center p-6 ${className}`}>
       <button
         onClick={handleAuthenticate}
         disabled={!isConnected || isAuthenticating}
-        className="w-full px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 disabled:opacity-50"
+        className="w-full px-6 py-3 text-lg font-bold rounded-xl shadow-xl transition-all duration-200 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 text-black hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
       >
         {isAuthenticating ? 'Authenticating...' : 'Authenticate with Yellow Network'}
       </button>
